@@ -5,7 +5,7 @@ test('test', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Email' }).click();
   await page.getByRole('textbox', { name: 'Email' }).fill('legalsqueez@yopmail.com');
   await page.getByRole('textbox', { name: 'Password' }).click();
-  await page.getByRole('textbox', { name: 'Password' }).fill('Welcome@11');
+  await page.getByRole('textbox', { name: 'Password' }).fill('Welcome@1');
   await page.getByRole('checkbox', { name: 'I Accept theTerms & Conditions' }).check();
   await page.getByRole('button', { name: 'Sign In' }).click();
   await page.getByRole('link', { name: '  Category' }).click();
