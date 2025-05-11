@@ -1,81 +1,63 @@
 import { test, expect } from '@playwright/test';
 
 test('test', async ({ page }) => {
-  // Navigate to login page
   await page.goto('https://admin.sqzvip.com/auth/login');
-  
-  // Log in
-  await page.fill('role=textbox[name="Email"]', 'legalsqueez@yopmail.com');
-  await page.fill('role=textbox[name="Password"]', 'Welcome@1');
-  await page.check('role=checkbox[name="I Accept theTerms & Conditions"]');
-  await page.click('role=button[name="Sign In"]');
-  
-  // Navigate to Category and add Restaurant information
-  await page.click('role=link[name="  Category"]');
-  await page.click('text=Add Restaurants information');
-  await page.click('role=button[name=" Add Restaurant"]');
-  
-  // Fill out restaurant details
-  await page.fill('input[name="name"]', 'Demo Restaurant');
-  await page.click('role=button[title="United States: +"]');
-  
-  // Select country code
-  await page.fill('placeholder="search"', 'ind');
-  await page.click('text="+91"');
-  
-  // Fill phone number
-  await page.fill('placeholder="1 (702) 123-"', '+91 958-746-324');
-  
-  // Fill other fields
-  await page.fill('.ql-editor', 'Hello World');
-  await page.fill('placeholder="Latitude"', '1.2');
-  await page.fill('placeholder="Longitude"', '1.2');
-  
-  // Select time zone
-  await page.click('.css-19bb58m');
-  await page.click('text=America/Denver');
-  
-  // Fill address details
-  await page.fill('input[name="addressName"]', '123');
-  await page.fill('placeholder="Street"', 'america');
-  
-  // Select country and state
-  await page.click('.css-b62m3t-container');
-  await page.fill('#react-select-3-input', 'ind');
-  await page.click('text="India (IN)"');
-  await page.click('.css-b62m3t-container');
-  await page.click('text="Bihar"');
-  
-  // Select city
-  await page.click('text=City *Select City');
-  await page.fill('#react-select-5-input', 'patna');
-  await page.click('text=Patna');
-  
-  // Fill remaining fields
-  await page.fill('placeholder="Zip"', '9658744');
-  await page.fill('placeholder="Booking URL"', 'https://world.com');
-  await page.fill('placeholder="Email"', 'abc@gmail.com');
-  await page.fill('placeholder="Type"', 'restaurant');
-  await page.fill('placeholder="Tax"', '10');
-  await page.fill('placeholder="Convenience Fee"', '10');
-  await page.fill('placeholder="Restaurant Menu URL"', 'https://menu.com');
-  await page.fill('placeholder="Minimum Threshold Amount"', '12');
-  await page.fill('placeholder="Auto - Approved Amount (per"', '72');
-  await page.fill('placeholder="Domain URL"', 'abc');
-  
-  // Submit the form
-  await page.click('text=Submit');
-  
-  // Additional form data
-  await page.fill('placeholder="Please enter the person count"', '4');
-  await page.fill('placeholder="Please enter the maximum price"', '100');
-  await page.click('form');
-  await page.click('text=Submit');
-  
-  // Update phone number and submit
-  await page.fill('placeholder="1 (702) 123-"', '+91 958-746-3245');
-  await page.click('text=Submit');
-  
-  // Search by name
-  await page.click('div:has-text("Search By Name")');
+  await page.getByRole('textbox', { name: 'Email' }).click();
+  await page.getByRole('textbox', { name: 'Email' }).fill('legalsqueez@yopmail.com');
+  await page.getByRole('textbox', { name: 'Email' }).press('CapsLock');
+  await page.getByRole('textbox', { name: 'Password' }).click();
+  await page.getByRole('textbox', { name: 'Password' }).press('CapsLock');
+  await page.getByRole('textbox', { name: 'Password' }).fill('Welcome@1');
+  await page.getByRole('checkbox', { name: 'I Accept theTerms & Conditions' }).check();
+  await page.getByRole('button', { name: 'Sign In' }).click();
+  await page.getByRole('link', { name: '  Category' }).click();
+  await page.getByText('Add Restaurants information').click();
+  await page.getByRole('button', { name: ' Add Restaurant' }).click();
+  await page.locator('input[name="name"]').click();
+  await page.locator('input[name="name"]').press('CapsLock');
+  await page.locator('input[name="name"]').fill('MAY');
+  await page.getByPlaceholder('1 (702) 123-').click();
+  await page.getByPlaceholder('1 (702) 123-').fill('+1 852-369-7412');
+  await page.locator('p').nth(2).click();
+  await page.locator('.ql-editor').first().fill('NEW RESTAURANT');
+  await page.getByPlaceholder('Latitude').click();
+  await page.getByPlaceholder('Latitude').fill('1.2');
+  await page.getByPlaceholder('Longitude').click();
+  await page.getByPlaceholder('Longitude').fill('1.3');
+  await page.locator('div').filter({ hasText: /^Select Timezone$/ }).nth(2).click();
+  await page.getByText('America/Los_Angeles').click();
+  await page.locator('div').filter({ hasText: 'Name *Mobile Number *PhoneDescription * NEW RESTAURANTLatitude *Longitude *' }).nth(3).click();
+  await page.locator('input[name="addressName"]').click();
+  await page.locator('input[name="addressName"]').fill('ONLY NAME');
+  await page.getByPlaceholder('Street').click();
+  await page.getByPlaceholder('Street').fill('STREET 1');
+  await page.locator('.pt-3 > .css-b62m3t-container > .css-15noair-control > .css-hlgwow > .css-19bb58m').first().click();
+  await page.locator('#react-select-3-input').fill('UNITE');
+  await page.getByText('United States (US)').click();
+  await page.locator('.pt-3 > .css-b62m3t-container > .css-15noair-control > .css-hlgwow > .css-19bb58m').first().click();
+  await page.locator('#react-select-4-input').fill('FLOR');
+  await page.getByText('Florida', { exact: true }).click();
+  await page.getByText('City *Select City').click();
+  await page.locator('#react-select-5-input').fill('TAMPA');
+  await page.getByText('Tampa', { exact: true }).click();
+  await page.getByPlaceholder('Zip').click();
+  await page.getByPlaceholder('Zip').fill('852369');
+  await page.getByPlaceholder('Booking URL').click();
+  await page.getByPlaceholder('Booking URL').press('CapsLock');
+  await page.getByPlaceholder('Booking URL').fill('https://new.com');
+  await page.getByPlaceholder('Type', { exact: true }).click();
+  await page.getByPlaceholder('Type', { exact: true }).fill('typee');
+  await page.getByPlaceholder('Restaurant Menu URL').click();
+  await page.getByPlaceholder('Restaurant Menu URL').fill('https://menu.com');
+  await page.getByPlaceholder('Minimum Threshold Amount').click();
+  await page.getByPlaceholder('Minimum Threshold Amount').fill('12');
+  await page.getByPlaceholder('Auto - Approved Amount (per').click();
+  await page.getByPlaceholder('Auto - Approved Amount (per').fill('72');
+  await page.getByPlaceholder('Please enter the person count').click();
+  await page.getByPlaceholder('Please enter the person count').fill('5');
+  await page.getByPlaceholder('Please enter the maximum price').click();
+  await page.getByPlaceholder('Please enter the maximum price').fill('500');
+  await page.locator('.pt-6 > div > .css-b62m3t-container > .css-15noair-control > .css-hlgwow > .css-19bb58m').click();
+  await page.locator('#react-select-6-option-0').click();
+  await page.getByText('Submit').click();
 });

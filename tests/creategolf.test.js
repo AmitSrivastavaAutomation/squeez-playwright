@@ -1,65 +1,48 @@
-import { test, expect } from '@playwright/test';
+const { test, expect } = require('@playwright/test');
+const { GolfPage } = require('../pages/GolfPage');
+const { readGolfDataFromExcel } = require('../utils/readExcel');
+const path = require('path');
+const fs = require('fs');
 
-test('test', async ({ page }) => {
-  await page.goto('https://admin.sqzvip.com/auth/login');
-  await page.getByRole('textbox', { name: 'Email' }).click();
-  await page.getByRole('textbox', { name: 'Email' }).fill('legalsqueez@yopmail.com');
-  await page.getByRole('textbox', { name: 'Email' }).press('Tab');
-  await page.getByRole('textbox', { name: 'Password' }).fill('Welcome@1');
-  await page.getByRole('checkbox', { name: 'I Accept theTerms & Conditions' }).check();
-  await page.getByRole('button', { name: 'Sign In' }).click();
-  await page.getByRole('link', { name: '  Category' }).click();
-  await page.locator('div').filter({ hasText: /^GolfAdd Golf information$/ }).nth(3).click();
-  await page.getByRole('button', { name: ' Add Golf' }).click();
-  await page.locator('input[name="name"]').click();
-  await page.locator('input[name="name"]').fill('abcd');
-  await page.locator('select[name="type"]').selectOption('18Holes');
-  await page.locator('select[name="golfType"]').selectOption('Public');
-  await page.getByPlaceholder('Latitude').click();
-  await page.getByPlaceholder('Latitude').fill('1.23');
-  await page.getByPlaceholder('Longitude').click();
-  await page.getByPlaceholder('Longitude').fill('1.2345');
-  await page.locator('.css-19bb58m').first().click();
-  await page.getByText('America/Chicago').click();
-  await page.locator('input[name="addressName"]').click();
-  await page.locator('input[name="addressName"]').fill('2121');
-  await page.getByPlaceholder('Street').click();
-  await page.getByPlaceholder('Street').fill('3232');
-  await page.locator('.pt-3 > .css-b62m3t-container > .css-15noair-control > .css-hlgwow > .css-19bb58m').first().click();
-  await page.locator('#react-select-3-input').fill('ind');
-  await page.getByText('India (IN)').click();
-  await page.waitForTimeout(1000);
-  await page.getByText('State *Select State').click();
-  await page.getByText('Bihar').click();
-  await page.locator('div:nth-child(6) > .css-b62m3t-container > .css-15noair-control > .css-hlgwow > .css-19bb58m').click();
-  await page.locator('#react-select-5-input').fill('patna');
-  await page.waitForTimeout(1000);
-  await page.getByText('Patna', { exact: true }).click();
-  await page.getByPlaceholder('Zip').click();
-  await page.getByPlaceholder('Zip').fill('69855');
-  await page.locator('.ql-editor').first().click();
-  await page.locator('.ql-editor').first().fill('Hello world');
-  await page.locator('.pt-17 > .col-12 > .quill > .ql-container > .ql-editor').first().click();
-  await page.locator('.pt-17 > .col-12 > .quill > .ql-container > .ql-editor').first().fill('Hello World');
-  await page.locator('#kt_modal_create_app p').nth(2).click();
-  await page.locator('div:nth-child(8) > .col-12 > .quill > .ql-container > .ql-editor').fill('Hello World');
-  await page.locator('div:nth-child(9) > .col-12 > .quill > .ql-container > .ql-editor').click();
-  await page.locator('div:nth-child(9) > .col-12 > .quill > .ql-container > .ql-editor').fill('Hello world');
-  await page.locator('#kt_modal_create_app p').nth(4).click();
-  await page.locator('div:nth-child(10) > .col-12 > .quill > .ql-container > .ql-editor').fill('Hello World');
-  await page.getByPlaceholder('Booking URL').click();
-  await page.getByPlaceholder('Booking URL').fill('https://abcd.com');
-  await page.getByPlaceholder('1 (702) 123-').click();
-  await page.getByPlaceholder('1 (702) 123-').fill('+1 569-874-5222');
-  await page.getByPlaceholder('Minimum Threshold Amount').click();
-  await page.getByPlaceholder('Minimum Threshold Amount').fill('12');
-  await page.getByPlaceholder('Auto - Approved Amount (per').click();
-  await page.getByPlaceholder('Auto - Approved Amount (per').fill('72');
-  await page.getByPlaceholder('Please enter the person count').click();
-  await page.getByPlaceholder('Please enter the person count').fill('5');
-  await page.getByPlaceholder('Please enter the maximum price').click();
-  await page.getByPlaceholder('Please enter the maximum price').fill('500');
-  
+// Load Excel data
+const filePath = path.resolve('D:/golfData.xlsx');
+const golfList = readGolfDataFromExcel(filePath, 'golfData');
 
-  await page.getByText('Submit').click();
+if (!golfList.length) {
+  throw new Error("❌ Excel file contains no data.");
+}
+
+// Use an index file to rotate through entries
+const indexFile = path.resolve('golfDataIndex.json');
+let currentIndex = 0;
+if (fs.existsSync(indexFile)) {
+  currentIndex = (JSON.parse(fs.readFileSync(indexFile)).index + 1) % golfList.length;
+}
+fs.writeFileSync(indexFile, JSON.stringify({ index: currentIndex }));
+
+const golfData = golfList[currentIndex];
+
+test('Login and create new golf entry from Excel', async ({ page }) => {
+  test.setTimeout(180000);
+  const golfPage = new GolfPage(page);
+
+  await page.goto('https://admin.sqzvip.com/login');
+  await golfPage.login('legalsqueez@yopmail.com', 'Welcome@1');
+  await page.waitForURL('**/dashboard');
+  await page.waitForLoadState('networkidle');
+
+  await expect(page.locator('a:has-text("Category")')).toBeVisible();
+  await page.locator('a:has-text("Category")').click();
+
+  await expect(page.locator('text=Add Golf information')).toBeVisible();
+  await page.locator('text=Add Golf information').click();
+
+  await expect(page.locator('//button[contains(., "Add Golf")]')).toBeVisible();
+  await page.locator('//button[contains(., "Add Golf")]').click();
+
+  await golfPage.fillGolfDetails(golfData);
+  await golfPage.submit();
+
+  await page.screenshot({ path: 'after-submit.png', fullPage: true });
+  await expect(page.getByText(/success/i)).toBeVisible({ timeout: 15000 });
 });
