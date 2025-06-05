@@ -7,7 +7,7 @@ export default defineConfig({
     headless: false,
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
-    baseURL: 'https://admin.sqzvip.com',
+   // baseURL: 'https://admin.sqzvip.com',
   },
   reporter: [['html'], ['list']], // <- this line is important
 });

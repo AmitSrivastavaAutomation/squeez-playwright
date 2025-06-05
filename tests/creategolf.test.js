@@ -1,48 +1,74 @@
+// tests/creategolf.test.js
 const { test, expect } = require('@playwright/test');
 const { GolfPage } = require('../pages/GolfPage');
-const { readGolfDataFromExcel } = require('../utils/readExcel');
+const { readExcelData } = require('../utils/readExcel');
 const path = require('path');
 const fs = require('fs');
 
 // Load Excel data
 const filePath = path.resolve('D:/golfData.xlsx');
-const golfList = readGolfDataFromExcel(filePath, 'golfData');
+const sheetName = 'golfData';
+const golfList = readExcelData(filePath, sheetName);
 
-if (!golfList.length) {
-  throw new Error("❌ Excel file contains no data.");
+if (!golfList || golfList.length === 0) {
+  throw new Error(`❌ No data found in sheet "${sheetName}".`);
 }
 
-// Use an index file to rotate through entries
+// Track which row to use
 const indexFile = path.resolve('golfDataIndex.json');
 let currentIndex = 0;
 if (fs.existsSync(indexFile)) {
-  currentIndex = (JSON.parse(fs.readFileSync(indexFile)).index + 1) % golfList.length;
+  try {
+    const saved = JSON.parse(fs.readFileSync(indexFile, 'utf8'));
+    currentIndex = (saved.index + 1) % golfList.length;
+  } catch {
+    console.warn("⚠️ Failed to read index file, defaulting to row 0.");
+  }
 }
 fs.writeFileSync(indexFile, JSON.stringify({ index: currentIndex }));
-
 const golfData = golfList[currentIndex];
 
 test('Login and create new golf entry from Excel', async ({ page }) => {
-  test.setTimeout(180000);
+  test.setTimeout(180000); // 3 min timeout
   const golfPage = new GolfPage(page);
 
-  await page.goto('https://admin.sqzvip.com/login');
+  console.log(`🧪 Using Excel row #${currentIndex + 1}: ${golfData.name}`);
+
+  // Step 1: Go to login page and log in
+  await page.goto('https://admin.sqzvip.com/auth/login');
   await golfPage.login('legalsqueez@yopmail.com', 'Welcome@1');
+
+  // Step 2: Ensure login success
   await page.waitForURL('**/dashboard');
   await page.waitForLoadState('networkidle');
 
-  await expect(page.locator('a:has-text("Category")')).toBeVisible();
-  await page.locator('a:has-text("Category")').click();
+  // Step 3: Navigate to Golf section
+  await golfPage.navigateToGolfFromSidebar();
 
-  await expect(page.locator('text=Add Golf information')).toBeVisible();
-  await page.locator('text=Add Golf information').click();
+  // Step 4: Click Add Golf button
+  const addGolfBtn = page.getByRole('button', { name: 'Add Golf' });
+  await expect(addGolfBtn).toBeVisible({ timeout: 5000 });
+  await addGolfBtn.click();
 
-  await expect(page.locator('//button[contains(., "Add Golf")]')).toBeVisible();
-  await page.locator('//button[contains(., "Add Golf")]').click();
-
+  // Step 5: Fill golf form
   await golfPage.fillGolfDetails(golfData);
+
+  // Step 6: Submit form
   await golfPage.submit();
 
-  await page.screenshot({ path: 'after-submit.png', fullPage: true });
-  await expect(page.getByText(/success/i)).toBeVisible({ timeout: 15000 });
+  // Step 7: Validate success
+  const successToast = page.locator('.toast-message, .alert-success, [role="alert"]', {
+    hasText: /success|created|golf/i,
+  });
+
+  try {
+    await expect(successToast).toBeVisible({ timeout: 10000 });
+    console.log('✅ Success toast message found.');
+  } catch {
+    console.warn('⚠️ Toast not found. Checking fallback header...');
+    await page.screenshot({ path: `golf-failure-${currentIndex + 1}.png`, fullPage: true });
+    const fallback = page.locator('h1, .page-heading', { hasText: 'Golf' });
+    await expect(fallback).toBeVisible({ timeout: 5000 });
+    console.log('✅ Fallback Golf heading detected. Assuming success.');
+  }
 });

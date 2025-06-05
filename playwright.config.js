@@ -3,7 +3,7 @@ import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
   use: {
-    baseURL: 'https://admin.sqzvip.com',
+   //baseURL: 'https://admin.sqzvip.com',
     headless: false,
     viewport: { width: 1900, height: 900 },
     video: 'on',
