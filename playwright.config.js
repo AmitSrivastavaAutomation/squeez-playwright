@@ -1,14 +1,39 @@
-// playwright.config.js
-import { defineConfig } from '@playwright/test';
+const { defineConfig } = require("@playwright/test");
+require("dotenv").config();
 
-export default defineConfig({
+module.exports = defineConfig({
+  testDir: "./tests",
+  workers: 1,
+  globalSetup: require.resolve("./global-setup"),
+
+  // ✅ Add Allure Reporter here
+  reporter: [
+    ["list"], // Optional: shows progress in console
+    ["allure-playwright"], // Required for Allure reports
+  ],
+
   use: {
-   //baseURL: 'https://admin.sqzvip.com',
     headless: false,
-    viewport: { width: 1900, height: 900 },
-    video: 'on',
-    screenshot: 'only-on-failure',
+    baseURL: process.env.BASE_URL,
+    viewport: null,
+    storageState: "./auth/state.json",
+    ignoreHTTPSErrors: true,
+    launchOptions: {
+      args: ["--start-maximized"],
+      slowMo: 50,
+    },
+    screenshot: "only-on-failure",
+    video: "retain-on-failure",
+    trace: "retain-on-failure",
   },
-  retries: 0,
-  testDir: './tests',
+
+  projects: [
+    {
+      name: "Chromium",
+      use: {
+        browserName: "chromium",
+        viewport: null,
+      },
+    },
+  ],
 });

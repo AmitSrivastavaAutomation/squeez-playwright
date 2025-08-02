@@ -1,113 +1,144 @@
-class RestaurantPage {
-  constructor(page) {
+const { expect } = require("@playwright/test");
+const { BasePage } = require("./BasePage");
+
+class RestaurantPage extends BasePage {
+  constructor(page, timeout = 10000) {
+    super(page, timeout);
+
     this.page = page;
+    this.timeout = timeout;
+
+    // === Form Inputs in Order ===
+    this.fields = {
+      name: page.locator('input[name="name"]'),
+      phone: page.locator('input[type="tel"]:visible'),
+      description: page.locator('div.ql-editor[contenteditable="true"][data-placeholder="Write something..."]').first(),
+      latitude: page.locator('input[name="latitude"], input[placeholder="Latitude"]'),
+      longitude: page.locator('input[name="longitude"], input[placeholder="Longitude"]'),
+      addressName: page.locator('input[name="addressName"]'),
+      timezone: page.locator("#react-select-2-input"),
+      street: page.locator('input[placeholder="Street"]'),
+      country: page.locator("#react-select-3-input"),
+      state: page.locator("#react-select-4-input"),
+      city: page.locator("#react-select-5-input"),
+      zip: page.locator('input[placeholder="Zip"]'),
+      bookingUrl: page.locator('input[placeholder="Booking URL"]'),
+      email: page.locator('input[placeholder="Email"]'),
+      type: page.locator('input[name="restaurantType"]'),
+      interval: page.locator("#react-select-6-input").first(),
+      minThreshold: page.locator('input[name="minThreshold"], input[placeholder="Minimum Threshold Amount"]'),
+      minSqueezAmount: page.locator('input[name="minSqueezAmount"], input[placeholder="Auto - Approved Amount (per person)"]'),
+      menuUrl: page.locator('input[name="menuUrl"], input[placeholder="Restaurant Menu URL"]'),
+      personCount: page.locator('input[name="personCount"], input[placeholder="Please enter the person count"]'),
+      maxPrice: page.locator('input[name="maximumPrice"], input[placeholder="Please enter the maximum price"]'),
+      categoryItem: page.locator('div.menu-item:has-text("Category")').first(),
+      categoryTab: page.locator("span.menu-title.fs-2", { hasText: "Restaurants" }).first(),
+      addButton: page.locator("button", { hasText: "Add Restaurant" }).first(),
+      submitButton: page.locator('button[type="submit"]:has-text("Submit")'),
+    };
+
+    this.dropdownKeyMap = {
+      timezone: "timezone",
+      country: "country",
+      state: "state",
+      city: "city",
+      interval: "interval",
+    };
   }
 
-  async login(email, password) {
-    const page = this.page;
-
-    await page.getByRole('textbox', { name: 'Email' }).fill(email);
-    await page.getByRole('textbox', { name: 'Password' }).fill(password);
-    await page.getByRole('checkbox', { name: /I Accept/i }).check();
-
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: "networkidle" }),
-      page.getByRole("button", { name: /Sign In/i }).click(),
-    ]);
-  }
-
-  async navigateToRestaurantFromSidebar() {
-    const page = this.page;
-
-    await page.locator('.menu-arrow').first().click({ force: true });
-    const restaurantTab = page.getByRole('link', { name: 'Restaurants' });
-    await restaurantTab.scrollIntoViewIfNeeded();
-    await restaurantTab.click({ force: true });
-
-    const addButton = page.getByRole("button", { name: /Add Restaurant/i });
-    await addButton.waitFor({ timeout: 3000 });
-    await addButton.click({ force: true });
-  }
-
+  // Filling the restaurant form with data
   async fillRestaurantDetails(data) {
-    const page = this.page;
+    const orderedKeys = [
+      "name",
+      "phone",
+      "description",
+      "latitude",
+      "longitude",
+      ,
+      "timezone",
+      "addressName",
+      "street",
+      "country",
+      "state",
+      "city",
+      "zip",
+      "bookingUrl",
+      "email",
+      "type",
+      "menuUrl",
+      "minThreshold",
+      "minSqueezAmount",
+      "personCount",
+      "maxPrice",
+      "interval",
+      ,
+    ];
 
-    await page.locator('input[name="name"]').fill(data.name);
-    await page.getByPlaceholder("1 (702) 123-").fill(data.phone);
-    await page.locator('.ql-editor').first().fill(data.description);
-    await page.getByPlaceholder("Latitude").fill(String(data.latitude));
-    await page.getByPlaceholder("Longitude").fill(String(data.longitude));
+    for (const key of orderedKeys) {
+      const value = data[key];
+      if (!value) continue;
 
-    await this.selectReactDropdown(page.locator("#react-select-2-input"), data.timezone);
+      const field = this.fields[key];
+      if (!field) {
+        console.warn(`⚠️ No field mapping for: ${key}`);
+        continue;
+      }
 
-    await page.locator('input[name="addressName"]').fill(data.addressName);
-    await page.getByPlaceholder("Street").fill(data.street);
-
-    await this.selectReactDropdown(page.locator("#react-select-3-input"), data.country);
-    await this.selectReactDropdown(page.locator("#react-select-4-input"), data.state);
-    await this.selectReactDropdown(page.locator("#react-select-5-input"), data.city);
-
-    await page.getByPlaceholder("Zip").fill(String(data.zip));
-    await page.getByPlaceholder("Booking URL").fill(data.bookingUrl);
-    await page.getByPlaceholder("Type", { exact: true }).fill(data.type);
-    await page.getByPlaceholder("Restaurant Menu URL").fill(data.menuUrl);
-    await page.getByPlaceholder("Minimum Threshold Amount").fill(String(data.minThreshold));
-    await page.getByPlaceholder("Auto - Approved Amount (per").fill(String(data.autoApprovedAmount));
-    await page.getByPlaceholder("Please enter the person count").fill(String(data.personCount));
-    await page.getByPlaceholder("Please enter the maximum price").fill(String(data.maxPrice));
-
-    await this.selectReactDropdown(page.locator("#react-select-6-input"), data.interval);
-
-    await page.locator('.pt-8 > .col-12 > .quill > .ql-container > .ql-editor').fill('Test description');
-  }
-
-  async selectReactDropdown(inputLocator, optionText) {
-    const page = this.page;
-
-    const wrapper = inputLocator.locator('xpath=ancestor::div[contains(@class, "css-15noair-control")]');
-    await wrapper.click({ force: true });
-    await inputLocator.fill(optionText);
-    await page.waitForTimeout(300); // quick pause to render dropdown
-
-    const option = page.locator('div[id*="-option-"]', { hasText: optionText }).first();
-
-    try {
-      await option.waitFor({ state: "visible", timeout: 3000 });
-      await option.scrollIntoViewIfNeeded();
-      await option.click({ force: true });
-    } catch (e) {
-      throw new Error(`❌ Option "${optionText}" not found in dropdown`);
+      try {
+        if (this.dropdownKeyMap[key]) {
+          await field.scrollIntoViewIfNeeded();
+          await this.page.waitForTimeout(500);
+          await this.click(field);
+          await this.fill(field, String(value));
+          const option = this.page.locator('div[role="option"]').filter({ hasText: value });
+          await option.waitFor({ state: "visible", timeout: 4000 });
+          await this.click(option);
+          console.log(`✅ Selected dropdown "${key}": ${value}`);
+        } else {
+          await this.fill(field, String(value));
+        }
+      } catch (err) {
+        console.warn(`❌ Fill failed for "${key}": ${err.message}`);
+        await this.page.waitForTimeout(1000); // retry
+        try {
+          await this.fill(field, String(value));
+        } catch (innerErr) {
+          console.warn(`⚠️ Retry also failed for "${key}": ${innerErr.message}`);
+        }
+      }
     }
   }
 
-  async submit() {
-    const page = this.page;
-    const submitBtn = page.getByText("Submit");
+  async navigateToCategorySection() {
+    console.log("🏠 Navigating to dashboard (with session)...");
 
-    await page.waitForSelector('button:has-text("Submit")', {
-      state: "visible",
-      timeout: 3000,
-    });
+    await this.page.goto(`${process.env.BASE_URL}/dashboard`, { waitUntil: "domcontentloaded" });
 
-    const isDisabled = await submitBtn.getAttribute("disabled");
-    if (isDisabled !== null) {
-      throw new Error("🚫 Submit button is disabled");
+    await this.waitFor(this.fields.categoryItem);
+    const isExpanded = await this.fields.categoryItem.evaluate((el) => el.classList.contains("show"));
+
+    if (!isExpanded) {
+      await this.click(this.fields.categoryItem.locator(".menu-link").first());
     }
 
-    await submitBtn.scrollIntoViewIfNeeded();
-    await submitBtn.click({ force: true });
-    console.log("✅ Submit button clicked");
+    await this.click(this.fields.categoryTab);
+    await this.click(this.fields.addButton);
 
-    const successToast = page.locator(".toast-message, .alert-success, [role='alert']", {
-      hasText: /success|created/i,
-    });
+    console.log("✅ Reached Add Restaurant modal.");
+  }
 
-    try {
-      await successToast.waitFor({ timeout: 5000 });
-      console.log("✅ Success toast message found");
-    } catch {
-      console.warn("⚠️ No success message found. Consider fallback validation.");
-    }
+  async submitForm() {
+    await this.click(this.fields.submitButton);
+    console.log("✅ Restaurant form submitted.");
+    //await this.page.pause();
+  }
+
+  async addNewRestaurant(data) {
+    await this.navigateToCategorySection();
+    await this.page.waitForTimeout(1000);
+    await this.fillRestaurantDetails(data);
+    await this.page.waitForTimeout(1000);
+    await this.submitForm();
   }
 }
 

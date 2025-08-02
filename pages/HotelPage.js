@@ -1,161 +1,152 @@
-const xlsx = require("xlsx");
+const { expect } = require("@playwright/test");
+const { BasePage } = require("./BasePage");
 
-class HotelPage {
-  constructor(page) {
+class HotelPage extends BasePage {
+  constructor(page, timeout = 10000) {
+    super(page, timeout);
+
     this.page = page;
+    this.timeout = timeout;
+
+    // === Hotel Form Locators (Ordered) ===
+    this.fields = {
+      businessName: page.locator('input[placeholder="Name"][name="name"]'),
+      mobileNumber: page.locator('input[name="phone"], input[placeholder="Mobile Number"]'),
+      addressName: page.locator('input[name="addressName"], input[placeholder="Address Name"]'),
+
+      description: page.locator('div.ql-editor[contenteditable="true"][data-placeholder="Write something..."]').first(),
+      latitude: page.locator('input[placeholder="Latitude"]'),
+      longitude: page.locator('input[placeholder="Longitude"]'),
+      bookingPreferences: page.locator("#react-select-1-input"),
+      timezone: page.locator("#react-select-2-input"),
+      addressName: page.locator('input[placeholder="Address Name"]'),
+      street: page.locator('input[placeholder="Street"]'),
+      country: page.locator("#react-select-3-input"),
+      state: page.locator("#react-select-4-input"),
+      city: page.locator("#react-select-5-input"),
+      zip: page.locator('input[placeholder="Zip"]'),
+      bookingUrl: page.locator('input[placeholder="Booking URL"]'),
+      minThreshold: page.locator('input[placeholder="Minimum Threshold Amount"]'),
+      maxPerson: page.locator('input[placeholder="Please enter the person count"]'),
+      maxPrice: page.locator('input[placeholder="Please enter the maximum price"]'),
+      interval: page.locator("#react-select-6-input"),
+      // Navigation
+      categoryItem: page.locator('div.menu-item:has-text("Category")').first(),
+      categoryTab: page.locator("span.menu-title.fs-2", { hasText: "Hotels" }).first(),
+      addButton: page.locator('button:has-text("Add Hotel")').first(),
+      submitButton: page.locator('button[type="submit"]:has-text("Submit")'),
+    };
+
+    // === Dropdown Field Map ===
+    this.dropdownKeyMap = {
+      bookingPreferences: "bookingPreferences",
+      timezone: "timezone",
+      country: "country",
+      state: "state",
+      city: "city",
+      interval: "interval",
+    };
   }
 
-  async waitBeforeClick() {
-    console.log("⏳ Waiting 1 extra second before click...");
+  // === Fill Form Fields in Specified Order ===
+  async fillHotelDetails(data) {
+    const orderedKeys = [
+      "businessName",
+      "mobileNumber",
+      "description",
+      "latitude",
+      "longitude",
+      "bookingPreferences",
+      "timezone",
+      "addressName",
+      "street",
+      "country",
+      "state",
+      "city",
+      "zip",
+      "bookingUrl",
+      "minThreshold",
+      "maxPerson",
+      "maxPrice",
+      "interval",
+    ];
+
+    for (const key of orderedKeys) {
+      const value = data[key];
+      if (!value) continue;
+
+      const field = this.fields[key];
+      if (!field) {
+        console.warn(`⚠️ No field found for key: ${key}`);
+        continue;
+      }
+
+      try {
+        if (key === "description") {
+          await field.click({ force: true });
+          await field.evaluate((node, val) => {
+            node.innerHTML = val;
+            node.dispatchEvent(new Event("input", { bubbles: true }));
+          }, String(value));
+          console.log(`📝 Filled rich text "${key}"`);
+        } else if (this.dropdownKeyMap[key]) {
+          await field.scrollIntoViewIfNeeded();
+          await this.page.waitForTimeout(500);
+          await this.click(field);
+          await this.fill(field, String(value));
+          const option = this.page.locator('div[role="option"]').filter({ hasText: value });
+          await option.waitFor({ state: "visible", timeout: 1000 });
+          await this.click(option);
+          console.log(`✅ Selected dropdown "${key}": ${value}`);
+        } else {
+          await this.fill(field, String(value));
+          console.log(`✅ Filled "${key}": ${value}`);
+        }
+      } catch (err) {
+        console.warn(`❌ Fill failed for "${key}": ${err.message}`);
+        await this.page.waitForTimeout(1000);
+        try {
+          await this.fill(field, String(value));
+        } catch (innerErr) {
+          console.warn(`⚠️ Retry also failed for "${key}": ${innerErr.message}`);
+        }
+      }
+    }
+  }
+
+  // === Navigation to Hotels Category Tab ===
+  async navigateToCategorySection() {
+    console.log("🏨 Navigating to dashboard...");
+
+    await this.page.goto(`${process.env.BASE_URL}/dashboard`, { waitUntil: "domcontentloaded" });
+
+    await this.waitFor(this.fields.categoryItem);
+    const isExpanded = await this.fields.categoryItem.evaluate((el) => el.classList.contains("show"));
+
+    if (!isExpanded) {
+      await this.click(this.fields.categoryItem.locator(".menu-link").first());
+    }
+
+    await this.click(this.fields.categoryTab);
+    await this.click(this.fields.addButton);
+
+    console.log("✅ Reached Add Hotel modal.");
+  }
+
+  // === Submit Form ===
+  async submitForm() {
+    await this.click(this.fields.submitButton);
+    console.log("✅ Hotel form submitted.");
+    // await this.page.pause(); // Uncomment for debug
+  }
+
+  // === Full Flow: Navigate + Fill + Submit ===
+  async addNewHotel(data) {
+    await this.navigateToCategorySection();
     await this.page.waitForTimeout(1000);
-  }
-
-  async clickAndFill(locator, value) {
-    if (typeof value !== "string" || value.trim() === "") return;
-    await locator.scrollIntoViewIfNeeded();
-    await locator.waitFor({ state: "visible", timeout: 3000 });
-    await this.waitBeforeClick();
-    await locator.click({ delay: 150, force: true });
-    await locator.fill(value);
-  }
-
-  async login(email, password) {
-    await this.page.goto("https://admin.sqzvip.com/auth/login");
-    await this.clickAndFill(this.page.getByPlaceholder("Email"), email);
-    await this.clickAndFill(this.page.getByPlaceholder("Password"), password);
-    await this.page.getByRole("checkbox", { name: /I Accept/i }).check();
-
-    await Promise.all([
-      this.page.waitForNavigation({ waitUntil: "networkidle" }),
-      this.page.getByRole("button", { name: /Sign In/i }).click(),
-    ]);
-  }
-
-  async navigateToHotelForm() {
-    const categoryMenu = this.page.locator("span.menu-title.fs-2", {
-      hasText: "Category",
-    });
-    await categoryMenu.scrollIntoViewIfNeeded();
-    await this.waitBeforeClick();
-    await categoryMenu.click({ delay: 150 });
-
-    const hotelTab = this.page.locator("span.menu-title.fs-2", {
-      hasText: "Hotels",
-    });
-    await hotelTab.scrollIntoViewIfNeeded();
-    await this.waitBeforeClick();
-    await hotelTab.click({ delay: 150 });
-
-    const addButton = this.page.getByRole("button", {
-      name: /Add Hotel/i,
-    });
-    await this.waitBeforeClick();
-    await addButton.click({ delay: 150 });
-  }
-
-  async selectDropdown(index, inputId, searchValue, matchText) {
-    const dropdown = this.page.locator(".css-15noair-control").nth(index);
-    await this.waitBeforeClick();
-    await dropdown.click({ delay: 150 });
-
-    const input = this.page.locator(`#${inputId}`);
-    await input.waitFor({ state: "visible", timeout: 3000 });
-
-    if (searchValue?.trim()) {
-      await input.fill(searchValue);
-    }
-
-    const option = this.page.locator(
-      `div[id^="${inputId.replace("-input", "-option")}"]`,
-      { hasText: matchText }
-    );
-
-    if ((await option.count()) === 0) {
-      throw new Error(`❌ No dropdown option found for "${matchText}" in ${inputId}`);
-    }
-
-    await this.waitBeforeClick();
-    await option.first().click({ delay: 150 });
-  }
-
-  async selectTimezone(searchValue, matchText) {
-    const wrapper = this.page.locator(".css-19bb58m").first();
-    await this.waitBeforeClick();
-    await wrapper.click({ delay: 150 });
-
-    const input = this.page.locator("#react-select-2-input");
-    await input.waitFor({ state: "visible", timeout: 3000 });
-
-    if (searchValue?.trim()) {
-      await input.fill(searchValue);
-    }
-
-    const option = this.page.locator('div[id^="react-select-2-option"]', {
-      hasText: matchText,
-    });
-
-    if ((await option.count()) === 0) {
-      throw new Error(`❌ Timezone option "${matchText}" not found`);
-    }
-
-    await this.waitBeforeClick();
-    await option.first().click({ delay: 150 });
-  }
-
-  async selectInterval(matchText) {
-    const page = this.page;
-
-    // Step 1: Try clicking the wrapper reliably
-    const wrapper = page.locator(".css-15noair-control").filter({
-      hasText: /Please select the squeez interval/i,
-    });
-    await this.waitBeforeClick();
-    await wrapper.first().click({ delay: 150 });
-
-    // Step 2: Safely locate the input
-    const input = page.locator('input[id^="react-select"][id$="-input"]').last();
-    await input.waitFor({ state: 'visible', timeout: 3000 });
-    await input.fill(matchText);
-    await page.waitForTimeout(500);
-
-    // Step 3: Select the dropdown option
-    const option = page.locator('div[id*="-option-"]', {
-      hasText: matchText,
-    });
-
-    if ((await option.count()) === 0) {
-      const allOptions = await page.locator('div[id*="-option-"]').allTextContents();
-      throw new Error(`❌ Interval "${matchText}" not found. Available: ${allOptions.join(', ')}`);
-    }
-
-    await this.waitBeforeClick();
-    await option.first().click({ delay: 150 });
-    console.log(`✅ Interval "${matchText}" selected`);
-  }
-
-  async submit() {
-    const button = this.page.getByText("Submit");
-    await this.waitBeforeClick();
-    await button.click({ delay: 150 });
-    console.log("✅ Submit button clicked");
-
-    const successLocator = this.page.locator(
-      '.toast-message, .alert-success, [role="alert"]',
-      { hasText: /success|created/i }
-    );
-
-    try {
-      await successLocator.waitFor({ timeout: 5000 });
-      console.log("✅ Success message detected");
-    } catch {
-      console.warn("⚠️ No visible success message found after submit.");
-    }
-  }
-
-  static readExcel(filePath, sheetName) {
-    const workbook = xlsx.readFile(filePath);
-    const worksheet = workbook.Sheets[sheetName];
-    return xlsx.utils.sheet_to_json(worksheet);
+    await this.fillHotelDetails(data);
+    await this.page.waitForTimeout(1000);
+    await this.submitForm();
   }
 }
 

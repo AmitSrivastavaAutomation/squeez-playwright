@@ -1,104 +1,155 @@
-class GolfPage {
-  constructor(page) {
+const { expect } = require("@playwright/test");
+const { BasePage } = require("./BasePage");
+
+class GolfPage extends BasePage {
+  constructor(page, timeout = 10000) {
+    super(page, timeout);
     this.page = page;
-  }
+    this.timeout = timeout;
 
-  async login(email, password) {
-    await this.page.getByPlaceholder("Email").fill(email);
-    await this.page.getByPlaceholder("Password").fill(password);
-    await this.page.getByRole("checkbox", { name: /I Accept/i }).check();
-    await Promise.all([
-      this.page.waitForNavigation({ waitUntil: "networkidle" }),
-      this.page.getByRole("button", { name: "Sign In" }).click(),
-    ]);
-  }
+    // === All Required Field Locators ===
+    this.fields = {
+      name: page.locator('input[name="name"]'),
+      type: page.locator('select[name="type"]'),
+      golfType: page.locator('select[name="golfType"]'),
+      latitude: page.locator('input[placeholder="Latitude"]'),
+      longitude: page.locator('input[placeholder="Longitude"]'),
+      timezone: page.locator("#react-select-2-input"),
+      addressName: page.locator('input[name="addressName"]'),
+      street: page.locator('input[placeholder="Street"]'),
+      country: page.locator("#react-select-3-input"),
+      state: page.locator("#react-select-4-input"),
+      city: page.locator("#react-select-5-input"),
+      zip: page.locator('input[placeholder="Zip"]'),
+      bookingUrl: page.locator('input[placeholder="Booking URL"]'),
+      phone: page.locator('input[type="tel"]'),
+      minThreshold: page.locator('input[placeholder="Minimum Threshold Amount"]'),
+      autoApprovedAmount: page.locator('input[placeholder^="Auto - Approved Amount"]'),
+      personCount: page.locator('input[placeholder="Please enter the person count"]'),
+      maxPrice: page.locator('input[placeholder="Please enter the maximum price"]'),
+      interval: page.locator("#react-select-6-input"),
 
-  async navigateToGolfFromSidebar() {
-    const page = this.page;
-    const categoryMenu = page.locator("span.menu-title.fs-2", { hasText: "Category" });
-    if (await categoryMenu.isVisible()) {
-      await categoryMenu.click();
-    }
-    const golfTab = page.locator("span.menu-title.fs-2", { hasText: "Golf" });
-    await golfTab.scrollIntoViewIfNeeded();
-    await golfTab.click();
+      // Sidebar Nav
+      categoryItem: page.locator('div.menu-item:has-text("Category")').first(),
+      golfTab: page.locator("span.menu-title.fs-2", { hasText: "Golf" }).first(),
+      addButton: page.locator('button:has-text("Add Golf")').first(),
+      submitButton: page.locator('button[type="submit"]:has-text("Submit")'),
+    };
+
+    // Field types map
+    this.fieldTypeMap = {
+      type: "select",
+      golfType: "select",
+      timezone: "dropdown",
+      country: "dropdown",
+      state: "dropdown",
+      city: "dropdown",
+      interval: "dropdown",
+      description: "richText",
+      privacyDescription: "richText",
+      rulesDescription: "richText",
+      teeTimeDescription: "richText",
+      teeTimePolicy: "richText",
+    };
+
+    // Rich text editor locator order
+    this.richTextOrder = ["description", "privacyDescription", "rulesDescription", "teeTimeDescription", "teeTimePolicy"];
   }
 
   async fillGolfDetails(data) {
-    const page = this.page;
-    await page.locator('input[name="name"]').fill(data.name);
-    await page.locator('select[name="type"]').selectOption(data.type);
-    await page.locator('select[name="golfType"]').selectOption(data.golfType);
-    await page.getByPlaceholder("Latitude").fill(String(data.latitude));
-    await page.getByPlaceholder("Longitude").fill(String(data.longitude));
-    await this.selectReactDropdownSequential(page.locator("#react-select-2-input"), data.timezone);
-    await page.locator('input[name="addressName"]').fill(data.addressName || "Default Address Name");
-    await page.locator('input[name="street"]').fill(data.street || "Default Street");
-    await this.selectReactDropdownSequential(page.locator("#react-select-3-input"), data.country);
-    await this.selectReactDropdownSequential(page.locator("#react-select-4-input"), data.state);
-    await this.selectReactDropdownSequential(page.locator("#react-select-5-input"), data.city);
-    if (data.zip) await page.getByPlaceholder("Zip").fill(String(data.zip));
-    await this.fillDescriptionFields();
-    await page.getByPlaceholder("Booking URL").fill(data.bookingUrl);
-    const phoneInput = page.getByPlaceholder("1 (702) 123-");
-    await phoneInput.fill("");
-    await phoneInput.type(String(data.phone), { delay: 50 });
-    await page.getByPlaceholder("Minimum Threshold Amount").fill(String(data.minThreshold));
-    await page.getByPlaceholder("Auto - Approved Amount (per").fill(String(data.autoApprovedAmount));
-    await page.getByPlaceholder("Please enter the person count").fill(String(data.personCount));
-    await page.getByPlaceholder("Please enter the maximum price").fill(String(data.maxPrice));
-    await this.selectSqueezInterval(String(data.squeezInterval));
-  }
-
-  async fillDescriptionFields() {
-    const page = this.page;
-    const descriptions = [
-      "⛳ This golf course features lush fairways.",
-      "🌤️ Great spot for beginners and casual players.",
-      "📅 Open year-round with flexible tee times.",
-      "👨‍👩‍👧‍👦 Family-friendly environment and amenities.",
-      "🏌️‍♂️ Offers a challenging back 9 layout."
+    const orderedKeys = [
+      "name",
+      "type",
+      "golfType",
+      "latitude",
+      "longitude",
+      "timezone",
+      "addressName",
+      "street",
+      "country",
+      "state",
+      "city",
+      "zip",
+      "description",
+      "privacyDescription",
+      "rulesDescription",
+      "teeTimeDescription",
+      "teeTimePolicy",
+      "bookingUrl",
+      "phone",
+      "minThreshold",
+      "autoApprovedAmount",
+      "personCount",
+      "maxPrice",
+      "interval",
     ];
-    for (let i = 0; i < descriptions.length; i++) {
-      const editor = page.locator(".ql-editor").nth(i);
-      await editor.click();
-      await editor.fill(descriptions[i]);
+
+    for (const key of orderedKeys) {
+      const rawValue = data[key];
+      if (!rawValue) continue;
+
+      const value = String(rawValue).trim();
+      const field = this.fields[key];
+      const fieldType = this.fieldTypeMap[key] || "input";
+
+      try {
+        if (fieldType === "richText") {
+          const index = this.richTextOrder.indexOf(key);
+          const editor = this.page.locator(".ql-editor").nth(index);
+          await editor.click({ force: true });
+          await editor.evaluate((node, val) => {
+            node.innerHTML = val;
+            node.dispatchEvent(new Event("input", { bubbles: true }));
+          }, value);
+          console.log(`📝 Filled rich text "${key}"`);
+        } else if (fieldType === "select") {
+          await field.selectOption({ label: value });
+          console.log(`📘 Selected <select> "${key}": ${value}`);
+        } else if (fieldType === "dropdown") {
+          await field.click({ force: true });
+          await field.fill(value);
+          await this.page.waitForTimeout(300);
+          await field.press("Enter");
+          console.log(`📗 Selected dropdown "${key}": ${value}`);
+        } else {
+          await this.fill(field, value);
+          console.log(`✅ Filled input "${key}": ${value}`);
+        }
+
+        await this.page.waitForTimeout(800);
+      } catch (err) {
+        console.warn(`❌ Error filling "${key}": ${err.message}`);
+      }
     }
   }
 
-  async selectReactDropdownSequential(inputLocator, optionText) {
-    const page = this.page;
-    const wrapper = inputLocator.locator('xpath=ancestor::div[contains(@class, "css-15noair-control")]');
-    await wrapper.click({ force: true });
-    await inputLocator.fill(optionText);
-    const optionLocator = page.locator('div[id*="-option-"]', { hasText: optionText }).first();
-    await optionLocator.waitFor({ state: "visible", timeout: 5000 });
-    await optionLocator.scrollIntoViewIfNeeded();
-    await optionLocator.click({ force: true });
+  async navigateToCategorySection() {
+    console.log("📂 Navigating to Golf tab from sidebar...");
+    await this.page.goto(`${process.env.BASE_URL}/dashboard`, { waitUntil: "domcontentloaded" });
+    await this.waitFor(this.fields.categoryItem);
+
+    const isExpanded = await this.fields.categoryItem.evaluate((el) => el.classList.contains("show"));
+    if (!isExpanded) {
+      await this.click(this.fields.categoryItem.locator(".menu-link").first());
+    }
+
+    await this.click(this.fields.golfTab);
+    await this.click(this.fields.addButton);
+    console.log("✅ Reached Add Golf modal.");
   }
 
-  async selectSqueezInterval(optionText) {
-    const page = this.page;
-    const labelLocator = page.getByText("Squeez interval (minutes)", { exact: false });
-    const parent = await labelLocator.locator("xpath=..");
-    const trigger = parent.locator('.css-15noair-control');
-    await trigger.click({ force: true });
-    const input = page.locator('input[id^="react-select"][id$="-input"]').last();
-    await input.fill(optionText);
-    const optionLocator = page.locator('div[id*="-option-"]', { hasText: optionText }).first();
-    await optionLocator.waitFor({ state: "visible", timeout: 5000 });
-    await optionLocator.click({ force: true });
+  async submitForm() {
+    await this.click(this.fields.submitButton);
+    console.log("✅ Golf form submitted.");
+    // await this.page.pause();
   }
 
-  async submit() {
-    const page = this.page;
-    const submitBtn = page.locator("button.btn.btn-primary", { hasText: "Submit" });
-    await page.waitForSelector('button:has-text("Submit")', { state: "visible", timeout: 5000 });
-    const isDisabled = await submitBtn.getAttribute("disabled");
-    if (isDisabled !== null) throw new Error("🚫 Submit button is disabled");
-    await submitBtn.scrollIntoViewIfNeeded();
-    await submitBtn.click({ force: true });
-    console.log("✅ Submit button clicked");
+  async addNewGolf(data) {
+    await this.navigateToCategorySection();
+    await this.page.waitForTimeout(800);
+    await this.fillGolfDetails(data);
+    await this.page.waitForTimeout(800);
+    await this.submitForm();
   }
 }
 
