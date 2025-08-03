@@ -1,0 +1,63 @@
+📄 Picked Row 14: Restaurant 14
+🟢 Loaded random Excel row: Restaurant 14
+🧾 Keys: [
+  'name',              'phone',             'description',
+  'latitude',          'longitude',         'timezone',
+  'addressName',       'street',            'countrySearch',
+  'country',           'stateSearch',       'state',
+  'citySearch',        'city',              'zip',
+  'bookingUrl',        'email',             'type',
+  'tax',               'convenienceFee',    'menuUrl',
+  'facebookUrl',       'instagramUrl',      'twitterUrl',
+  'awardWinning',      'price',             'cuisine',
+  'paymentOptions',    'restaurantWebsite', 'reservationLink',
+  'tripAdvisorReview', 'eaterReview',       'googleReview',
+  'yelpReview',        'minThreshold',      'minSqueezAmount',
+  'personCount',       'maxPrice',          'interval',
+  'safetyNote'
+]
+─────────────────────────────────────────────
+🏠 Navigating to dashboard (with session)...
+✅ Clicked element
+✅ Clicked element
+✅ Clicked element
+✅ Reached Add Restaurant modal.
+✅ Filled input with: Restaurant 14
+✅ Filled input with: +1 702-123-45{:02d}
+✅ Filled input with: Description for restaurant 14
+✅ Filled input with: 36.11
+✅ Filled input with: -115.11
+✅ Clicked element
+✅ Filled input with: America/Los_Angeles
+✅ Clicked element
+✅ Selected dropdown "timezone": America/Los_Angeles
+✅ Filled input with: Address 14
+✅ Filled input with: 1 Main St
+✅ Clicked element
+✅ Filled input with: United States (US)
+✅ Clicked element
+✅ Selected dropdown "country": United States (US)
+✅ Clicked element
+✅ Filled input with: Florida
+✅ Clicked element
+✅ Selected dropdown "state": Florida
+✅ Clicked element
+✅ Filled input with: Tampa
+✅ Clicked element
+✅ Selected dropdown "city": Tampa
+✅ Filled input with: 90020
+✅ Filled input with: https://restaurant14.book
+✅ Filled input with: contact14@restaurant.com
+✅ Filled input with: Fine Dining
+✅ Filled input with: https://res.com
+✅ Filled input with: 10
+✅ Filled input with: 200
+✅ Filled input with: 5
+✅ Filled input with: 210
+✅ Clicked element
+✅ Filled input with: 10
+✅ Clicked element
+✅ Selected dropdown "interval": 10
+✅ Clicked element
+✅ Restaurant form submitted.
+✅ Restaurant added successfully
