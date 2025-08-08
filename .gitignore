@@ -1,4 +1,31 @@
-# Dependency directories
+# dependencies
 node_modules/
-jspm_packages/
-package-lock.json
+
+# env & secrets
+.env
+.env.*
+state.json
+
+# playwright artifacts
+playwright-report/
+test-results/
+*.trace.zip
+*.mp4
+*.png
+errors/
+
+# allure
+allure-results/
+allure-report/
+
+# coverage/build
+coverage/
+dist/
+build/
+
+# system/editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+tmp/
