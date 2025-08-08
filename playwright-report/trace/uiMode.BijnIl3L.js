@@ -210,8 +210,7 @@ class ot {
   }
   _mergeTestInto(t, e) {
     let s = this._options.mergeTestCases ? e.tests.find((i) => i.title === t.title && i.repeatEachIndex === t.repeatEachIndex) : void 0;
-    (s || ((s = new Gt(t.testId, t.title, this._absoluteLocation(t.location), t.repeatEachIndex)), e._addTest(s), this._tests.set(s.id, s)),
-      this._updateTest(t, s));
+    (s || ((s = new Gt(t.testId, t.title, this._absoluteLocation(t.location), t.repeatEachIndex)), e._addTest(s), this._tests.set(s.id, s)), this._updateTest(t, s));
   }
   _updateTest(t, e) {
     return (
@@ -394,8 +393,7 @@ function ie(r) {
     e = 0,
     s = 0;
   for (const i of r.results)
-    i.status === "interrupted" ||
-      (i.status === "skipped" && r.expectedStatus === "skipped" ? ++t : i.status === "skipped" || (i.status === r.expectedStatus ? ++e : ++s));
+    i.status === "interrupted" || (i.status === "skipped" && r.expectedStatus === "skipped" ? ++t : i.status === "skipped" || (i.status === r.expectedStatus ? ++e : ++s));
   return e === 0 && s === 0 ? "skipped" : s === 0 ? "expected" : e === 0 && t === 0 ? "unexpected" : "flaky";
 }
 class nt {
@@ -643,11 +641,7 @@ class oe {
           for (const s of this.rootSuite.allTests()) s.results = ((e = this._testResultsSnapshot) == null ? void 0 : e.get(s.id)) || s.results;
           this._testResultsSnapshot = void 0;
         }
-        ((this.progress.total = this._lastRunTestCount),
-          (this.progress.passed = 0),
-          (this.progress.failed = 0),
-          (this.progress.skipped = 0),
-          this._options.onUpdate(!0));
+        ((this.progress.total = this._lastRunTestCount), (this.progress.passed = 0), (this.progress.failed = 0), (this.progress.skipped = 0), this._options.onUpdate(!0));
       },
       onEnd: () => {
         this._options.onUpdate(!0);
@@ -682,8 +676,7 @@ class oe {
   }
   processTestReportEvent(t) {
     var e, s, i;
-    ((s = (e = this._lastRunReceiver) == null ? void 0 : e.dispatch(t)) == null || s.catch(() => {}),
-      (i = this._receiver.dispatch(t)) == null || i.catch(() => {}));
+    ((s = (e = this._lastRunReceiver) == null ? void 0 : e.dispatch(t)) == null || s.catch(() => {}), (i = this._receiver.dispatch(t)) == null || i.catch(() => {}));
   }
   _handleOnError(t) {
     var e, s;
@@ -830,14 +823,7 @@ const ne = ({ source: r }) => {
 Projects: ` +
             v,
           onClick: () => _(!l),
-          children: [
-            o.jsx("span", { className: "filter-label", children: "Status:" }),
-            " ",
-            h,
-            o.jsx("span", { className: "filter-label", children: "Projects:" }),
-            " ",
-            v,
-          ],
+          children: [o.jsx("span", { className: "filter-label", children: "Status:" }), " ", h, o.jsx("span", { className: "filter-label", children: "Projects:" }), " ", v],
         }),
         l &&
           o.jsxs("div", {
@@ -1038,10 +1024,7 @@ const he = Wt,
             o.jsxs("div", {
               id: x,
               className: "ui-mode-tree-item-title",
-              children: [
-                o.jsx("span", { children: f.title }),
-                f.kind === "case" ? f.tags.map((q) => o.jsx(ue, { tag: q.slice(1), onClick: (Z) => H(Z, q) }, q)) : null,
-              ],
+              children: [o.jsx("span", { children: f.title }), f.kind === "case" ? f.tags.map((q) => o.jsx(ue, { tag: q.slice(1), onClick: (Z) => H(Z, q) }, q)) : null],
             }),
             !!f.duration && f.status !== "skipped" && o.jsx("div", { id: M, className: "ui-mode-tree-item-time", children: Vt(f.duration) }),
             o.jsxs(Y, {
@@ -1313,8 +1296,7 @@ const wt = navigator.platform === "MacIntel",
           y = new Map(l);
         for (const P of y.keys()) m.suites.find((U) => U.title === P) || y.delete(P);
         for (const P of m.suites) y.has(P.title) || y.set(P.title, !!(k != null && k.includes(P.title)));
-        (!k && y.size && ![...y.values()].includes(!0) && y.set(y.entries().next().value[0], !0),
-          (l.size !== y.size || [...l].some(([P, U]) => y.get(P) !== U)) && _(y));
+        (!k && y.size && ![...y.values()].includes(!0) && y.set(y.entries().next().value[0], !0), (l.size !== y.size || [...l].some(([P, U]) => y.get(P) !== U)) && _(y));
       }, [l, a]),
       d.useEffect(() => {
         N && a != null && a.progress ? u(a.progress) : a || u(void 0);
@@ -1366,8 +1348,7 @@ const wt = navigator.platform === "MacIntel",
                   reporters: I.reporters,
                   trace: "on",
                 }));
-              for (const j of ((U = a.rootSuite) == null ? void 0 : U.allTests()) || [])
-                ((D = j.results[0]) == null ? void 0 : D.duration) === -1 && (j.results = []);
+              for (const j of ((U = a.rootSuite) == null ? void 0 : U.allTests()) || []) ((D = j.results[0]) == null ? void 0 : D.duration) === -1 && (j.results = []);
               (h({ ...a }), $((j) => (j ? { ...j, completed: !0 } : void 0)));
             })));
         },

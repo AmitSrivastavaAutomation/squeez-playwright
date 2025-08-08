@@ -9,7 +9,7 @@ test.describe.serial("Golf Creation Flow", () => {
     const data = await golfPage.getRandomExcelRow("golfData.xlsx", "golfData");
     console.log(`🟢 Loaded random Excel row: ${data.name}`);
     console.log("🧾 Keys:", Object.keys(data));
-    
+
     console.log("─────────────────────────────────────────────");
 
     await golfPage.addNewGolf(data);

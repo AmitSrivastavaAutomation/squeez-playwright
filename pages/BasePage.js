@@ -20,6 +20,7 @@ class BasePage {
       await locator.click({ timeout: this.timeout });
       await this.page.waitForTimeout(300);
       console.log(`✅ Clicked element`);
+      await this.pause();
     } catch (err) {
       console.warn(`❌ Click failed: ${err.message}`);
       await this.captureScreenshot("click_error", testInfo);
@@ -40,6 +41,7 @@ class BasePage {
 
       await locator.fill(stringValue);
       console.log(`✅ Filled input with: ${stringValue}`);
+      await this.pause();
     } catch (err) {
       console.warn(`❌ Fill failed for "${value}": ${err.message}`);
       await this.captureScreenshot("fill_error", testInfo);
@@ -55,6 +57,13 @@ class BasePage {
       await this.captureScreenshot("wait_error", testInfo);
       throw err;
     }
+  }
+
+  // ─────────────────────────────────────────────
+  // ⏱️ Optional Pause Utility
+  // ─────────────────────────────────────────────
+  async pause(ms = 1400) {
+    await this.page.waitForTimeout(ms);
   }
 
   // ─────────────────────────────────────────────
