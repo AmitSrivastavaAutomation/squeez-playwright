@@ -2,7 +2,8 @@ pipeline {
   agent any
 
   tools {
-    nodejs 'NodeJS_16'   // Match your tool name in Manage Jenkins → Global Tool Configuration
+    // Manage Jenkins → Global Tool Configuration → NodeJS installations
+    nodejs 'NodeJS_16'
   }
 
   options { timestamps() }
@@ -27,22 +28,29 @@ pipeline {
           REM Playwright browsers
           npx playwright install
 
-          REM Ensure Allure reporter and CLI are present locally
+          REM Ensure Allure reporter + CLI exist locally (safe no-ops if already installed)
           npm ls allure-playwright >NUL 2>&1 || npm i -D allure-playwright
           npm ls allure-commandline >NUL 2>&1 || npm i -D allure-commandline@latest
         '''
       }
     }
 
-    stage('Run tests (do not abort pipeline on failure)') {
+    stage('Run tests') {
       steps {
+        /*
+         * Reporters are defined in playwright.config.js:
+         *   ["line"], ["junit", { outputFile: "test-results/junit.xml" }],
+         *   ["allure-playwright", { outputFolder: "allure-results" }]
+         */
         catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
-          bat 'npx playwright test --reporter=line,allure-playwright'
+          bat 'npx playwright test'
         }
       }
       post {
         always {
+          // Keep raw results for debugging & trend
           archiveArtifacts artifacts: 'allure-results/**', onlyIfSuccessful: false, allowEmptyArchive: true
+          junit allowEmptyResults: true, testResults: 'test-results/junit.xml'
         }
       }
     }
@@ -57,7 +65,7 @@ pipeline {
               dir allure-single
             '''
           } catch (ignored) {
-            echo 'Allure single-file generation failed (maybe no results). Continuing…'
+            echo 'Allure single-file generation failed (maybe no results).'
           }
         }
       }
@@ -67,8 +75,9 @@ pipeline {
       steps {
         script {
           def hasReport = fileExists('allure-single/index.html')
-          def subjectPrefix = (currentBuild.currentResult == 'SUCCESS') ? '✅' : '❌'
-          def subject = "${subjectPrefix} Allure: ${env.JOB_NAME} #${env.BUILD_NUMBER} – ${currentBuild.currentResult}"
+          def status = currentBuild.currentResult
+          def subjectIcon = (status == 'SUCCESS') ? '✅' : (status == 'UNSTABLE' ? '⚠️' : '❌')
+          def subject = "${subjectIcon} Allure: ${env.JOB_NAME} #${env.BUILD_NUMBER} – ${status}"
 
           if (hasReport) {
             archiveArtifacts artifacts: 'allure-single/index.html', onlyIfSuccessful: false
@@ -78,7 +87,7 @@ pipeline {
               mimeType: 'text/html',
               attachmentsPattern: 'allure-single/index.html',
               body: """
-                <p>Build: <a href="${env.BUILD_URL}">${env.JOB_NAME} #${env.BUILD_NUMBER}</a> – ${currentBuild.currentResult}</p>
+                <p>Build: <a href="${env.BUILD_URL}">${env.JOB_NAME} #${env.BUILD_NUMBER}</a> – ${status}</p>
                 <p>The Allure report is attached as <code>index.html</code>. Download and open it directly.</p>
               """
             )
@@ -88,8 +97,8 @@ pipeline {
               subject: subject,
               mimeType: 'text/html',
               body: """
-                <p>Build: <a href="${env.BUILD_URL}">${env.JOB_NAME} #${env.BUILD_NUMBER}</a> – ${currentBuild.currentResult}</p>
-                <p>No Allure HTML attachment was produced (no allure-results). Check console log.</p>
+                <p>Build: <a href="${env.BUILD_URL}">${env.JOB_NAME} #${env.BUILD_NUMBER}</a> – ${status}</p>
+                <p>No Allure HTML attachment was produced. Ensure <code>allure-results/</code> exists (check console log).</p>
               """
             )
           }
