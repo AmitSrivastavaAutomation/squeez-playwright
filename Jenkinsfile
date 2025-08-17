@@ -25,14 +25,22 @@ pipeline {
           node -v
           npm -v
           npm ci
+
+          :: Playwright browsers
           npx playwright install
+
+          :: Ensure Allure reporter is present
           call npm ls allure-playwright >NUL 2>&1 || npm i -D allure-playwright
+
+          :: (Optional) pull latest Allure CLI on-demand via npx (no global install needed)
+          npx allure-commandline --version
         '''
       }
     }
 
     stage('Run tests (Playwright + Allure)') {
       steps {
+        :: // If reporter is already in playwright.config, you can drop --reporter flag
         bat 'npx playwright test --reporter=line,allure-playwright'
       }
       post {
@@ -42,12 +50,25 @@ pipeline {
       }
     }
 
-    stage('Publish Allure report') {
+    stage('Build Allure single HTML') {
       steps {
-        // Requires Allure Jenkins plugin
-        allure includeProperties: false, jdk: '', results: [[path: 'allure-results']]
+        // Create a self-contained HTML so it works as an email attachment
+        bat '''
+          if exist allure-single rd /s /q allure-single
+          npx allure generate allure-results --clean --single-file -o allure-single
+          dir allure-single
+        '''
+        // Keep the single-file HTML as a build artifact (helpful for debugging)
+        archiveArtifacts artifacts: 'allure-single/*.html', onlyIfSuccessful: false, allowEmptyArchive: true
       }
     }
+
+    // (Optional) You can also publish the normal Allure report in Jenkins UI
+    // stage('Publish Allure report in Jenkins') {
+    //   steps {
+    //     allure includeProperties: false, jdk: '', results: [[path: 'allure-results']]
+    //   }
+    // }
   }
 
   post {
@@ -56,9 +77,11 @@ pipeline {
         to: env.RECIPIENTS,
         subject: "✅ Allure: ${env.JOB_NAME} #${env.BUILD_NUMBER} – SUCCESS",
         mimeType: 'text/html',
+        // Attach the single-file HTML report
+        attachmentsPattern: 'allure-single/*.html',
         body: """
           <p>Build: <a href="${env.BUILD_URL}">${env.JOB_NAME} #${env.BUILD_NUMBER}</a> – SUCCESS</p>
-          <p><strong>Allure Report:</strong> <a href="${env.BUILD_URL}allure">${env.BUILD_URL}allure</a></p>
+          <p>The Allure report is attached as an HTML file (open directly).</p>
         """
       )
     }
@@ -67,9 +90,10 @@ pipeline {
         to: env.RECIPIENTS,
         subject: "❌ Allure: ${env.JOB_NAME} #${env.BUILD_NUMBER} – FAILED",
         mimeType: 'text/html',
+        attachmentsPattern: 'allure-single/*.html',
         body: """
           <p>Build: <a href="${env.BUILD_URL}">${env.JOB_NAME} #${env.BUILD_NUMBER}</a> – FAILED</p>
-          <p><strong>Allure Report (may be partial):</strong> <a href="${env.BUILD_URL}allure">${env.BUILD_URL}allure</a></p>
+          <p>The Allure report (may be partial) is attached as an HTML file.</p>
         """
       )
     }
