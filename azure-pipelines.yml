@@ -1,0 +1,30 @@
+trigger:
+- main  # Trigger on the main branch
+
+pool:
+  vmImage: 'ubuntu-latest'  # Use the latest Ubuntu image for the build
+
+steps:
+- task: UseNode@1  # Install Node.js
+  inputs:
+    versionSpec: '16.x'
+  displayName: 'Install Node.js'
+
+- task: Npm@1  # Install dependencies
+  inputs:
+    command: 'install'
+  displayName: 'Install npm dependencies'
+
+- task: Npm@1  # Run Playwright tests
+  inputs:
+    command: 'run'
+    arguments: 'test --reporter=junit --output=./test-results'  # Run tests with JUnit reporter
+  displayName: 'Run Playwright Tests'
+
+- task: PublishTestResults@2  # Publish test results
+  inputs:
+    testResultsFiles: '**/test-results/*.xml'  # Path to JUnit XML test results
+    testRunTitle: 'Playwright Test Results'
+    mergeTestResults: true
+  condition: always()  # Ensure this task runs even if tests fail
+  displayName: 'Publish Playwright Test Results'
