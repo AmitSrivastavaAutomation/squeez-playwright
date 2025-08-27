@@ -1,30 +1,41 @@
 trigger:
-- main  # Trigger on the main branch
+- main
 
 pool:
-  vmImage: 'ubuntu-latest'  # Use the latest Ubuntu image for the build
+  vmImage: ubuntu-latest
+
+variables:
+  WORKDIR: '$(System.DefaultWorkingDirectory)'  # change if tests are in a subfolder
 
 steps:
-- task: UseNode@1  # Install Node.js
+- task: NodeTool@0
   inputs:
-    versionSpec: '16.x'
-  displayName: 'Install Node.js'
+    versionSpec: '20.x'
+  displayName: 'Use Node.js 20'
 
-- task: Npm@1  # Install dependencies
-  inputs:
-    command: 'install'
+- script: npm ci
+  workingDirectory: '$(WORKDIR)'
   displayName: 'Install npm dependencies'
 
-- task: Npm@1  # Run Playwright tests
-  inputs:
-    command: 'run'
-    arguments: 'test --reporter=junit --output=./test-results'  # Run tests with JUnit reporter
-  displayName: 'Run Playwright Tests'
+- script: npx playwright install --with-deps
+  workingDirectory: '$(WORKDIR)'
+  displayName: 'Install Playwright browsers & deps'
 
-- task: PublishTestResults@2  # Publish test results
-  inputs:
-    testResultsFiles: '**/test-results/*.xml'  # Path to JUnit XML test results
-    testRunTitle: 'Playwright Test Results'
-    mergeTestResults: true
-  condition: always()  # Ensure this task runs even if tests fail
+- script: npx playwright test --reporter=junit
+  workingDirectory: '$(WORKDIR)'
+  displayName: 'Run Playwright Tests'
+  env:
+    CI: 'true'
+    PLAYWRIGHT_BROWSERS_PATH: '0'
+
+- task: PublishTestResults@2
   displayName: 'Publish Playwright Test Results'
+  condition: succeededOrFailed()
+  inputs:
+    testResultsFormat: 'JUnit'
+    # Playwright's JUnit file name can vary; cover common names:
+    testResultsFiles: |
+      **/junit*.xml
+      **/results.xml
+    searchFolder: '$(WORKDIR)'
+    mergeTestResults: true
