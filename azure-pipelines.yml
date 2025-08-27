@@ -5,37 +5,46 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  WORKDIR: '$(System.DefaultWorkingDirectory)'  # change if tests are in a subfolder
+  WORKDIR: '$(System.DefaultWorkingDirectory)'  # Change if your tests are in another subfolder
 
 steps:
+# Step 1: Install Node.js
 - task: NodeTool@0
   inputs:
     versionSpec: '20.x'
   displayName: 'Use Node.js 20'
 
+# Step 2: Install dependencies using npm ci
 - script: npm ci
   workingDirectory: '$(WORKDIR)'
   displayName: 'Install npm dependencies'
 
+# Step 3: Install Playwright browsers + dependencies
 - script: npx playwright install --with-deps
   workingDirectory: '$(WORKDIR)'
-  displayName: 'Install Playwright browsers & deps'
+  displayName: 'Install Playwright browsers & system dependencies'
 
-- script: npx playwright test --reporter=junit
+# Step 4: Run Playwright tests (ensure tests are in the "tests" folder or where you expect them)
+- script: |
+    echo "Running Playwright Tests..."
+    npx playwright test --reporter=junit --output=test-results
   workingDirectory: '$(WORKDIR)'
   displayName: 'Run Playwright Tests'
-  env:
-    CI: 'true'
-    PLAYWRIGHT_BROWSERS_PATH: '0'
 
+# Step 5: Publish JUnit test results (Ensure path matches where your test results are generated)
 - task: PublishTestResults@2
-  displayName: 'Publish Playwright Test Results'
-  condition: succeededOrFailed()
   inputs:
+    testResultsFiles: '**/test-results/*.xml'  # Path to JUnit XML test results
     testResultsFormat: 'JUnit'
-    # Playwright's JUnit file name can vary; cover common names:
-    testResultsFiles: |
-      **/junit*.xml
-      **/results.xml
-    searchFolder: '$(WORKDIR)'
+    testRunTitle: 'Playwright Test Results'
     mergeTestResults: true
+  condition: always()  # Ensure this task runs even if tests fail
+  displayName: 'Publish Playwright Test Results'
+
+# Step 6: Publish HTML report (optional)
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(WORKDIR)/playwright-report'
+    ArtifactName: 'playwright-report'
+  condition: always()
+  displayName: 'Publish Playwright HTML Report'
