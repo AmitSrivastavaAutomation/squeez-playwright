@@ -5,43 +5,101 @@ pool:
   vmImage: ubuntu-latest
 
 variables:
-  WORKDIR: '$(System.DefaultWorkingDirectory)'  # Change if your tests are in another subfolder
+  NODE_VERSION: '20.x'
+  WORKDIR: '$(System.DefaultWorkingDirectory)'
+  PW_BROWSERS_CACHE_DIR: '$(Pipeline.Workspace)/.pw-browsers'  # shared cache dir
+  NPM_CACHE_DIR: '$(Pipeline.Workspace)/.npm'
 
 steps:
-# Step 1: Install Node.js
+# 0) Explicitly check out the repo (full history & submodules if any)
+- checkout: self
+  fetchDepth: 0
+  submodules: recursive
+  clean: true
+
+# 0.1) Prove what's on disk (commit, files)
+- script: |
+    echo "==== GIT REMOTE & COMMIT ===="
+    git remote -v
+    git rev-parse HEAD
+    echo "==== REPO TREE (TOP LEVEL) ===="
+    ls -la
+    echo "==== PAGES / TESTS / UTILS ===="
+    ls -la pages || true
+    ls -la tests || true
+    ls -la utils || true
+  workingDirectory: '$(WORKDIR)'
+  displayName: 'Verify checkout (commit + files)'
+
+# 1) Node
 - task: NodeTool@0
   inputs:
-    versionSpec: '20.x'
-  displayName: 'Use Node.js 20'
+    versionSpec: '$(NODE_VERSION)'
+  displayName: 'Use Node.js $(NODE_VERSION)'
 
-# Step 2: Install dependencies using npm ci
-- script: npm ci
-  workingDirectory: '$(WORKDIR)'
-  displayName: 'Install npm dependencies'
+# 2) Cache npm
+- task: Cache@2
+  displayName: 'Restore npm cache'
+  inputs:
+    key: 'npm|$(Agent.OS)|$(Build.SourcesDirectory)/package-lock.json'
+    restoreKeys: |
+      npm|$(Agent.OS)
+    path: '$(NPM_CACHE_DIR)'
 
-# Step 3: Install Playwright browsers + dependencies
-- script: npx playwright install --with-deps
-  workingDirectory: '$(WORKDIR)'
-  displayName: 'Install Playwright browsers & system dependencies'
-
-# Step 4: Run Playwright tests (ensure tests are in the "tests" folder or where you expect them)
+# let npm use the pipeline cache dir
 - script: |
-    echo "Running Playwright Tests..."
-    npx playwright test --reporter=junit --output=test-results
+    npm config set cache "$(NPM_CACHE_DIR)" --global
+    npm ci
+  workingDirectory: '$(WORKDIR)'
+  displayName: 'Install npm dependencies (uses cache)'
+
+# 3) Cache Playwright browsers (HUGE speedup)
+#    We also point PLAYWRIGHT_BROWSERS_PATH to a cached folder.
+- task: Cache@2
+  displayName: 'Restore Playwright browsers cache'
+  inputs:
+    key: 'pw-browsers|$(Agent.OS)|$(Build.SourcesDirectory)/package-lock.json'
+    path: '$(PW_BROWSERS_CACHE_DIR)'
+
+# Install browsers only if missing
+- script: |
+    export PLAYWRIGHT_BROWSERS_PATH="$(PW_BROWSERS_CACHE_DIR)"
+    echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH"
+    # Install only if chromium not present
+    if [ ! -d "$PLAYWRIGHT_BROWSERS_CACHE_DIR" ] || [ -z "$(ls -A "$PLAYWRIGHT_BROWSERS_CACHE_DIR")" ]; then
+      echo "No cached browsers found. Installing..."
+      npx playwright install --with-deps
+    else
+      echo "Browsers found in cache. Skipping install."
+    fi
+  workingDirectory: '$(WORKDIR)'
+  displayName: 'Ensure Playwright browsers are available'
+
+# 4) Run tests with a deterministic JUnit XML path
+#    Configure reporters from CLI so PublishTestResults can find them.
+- script: |
+    export PLAYWRIGHT_BROWSERS_PATH="$(PW_BROWSERS_CACHE_DIR)"
+    echo "Running Playwright tests..."
+    # Create results folder up front
+    mkdir -p test-results
+    # JUnit output file is controlled by PW_TEST_JUNIT_OUTPUT
+    export PW_TEST_JUNIT_OUTPUT="test-results/junit.xml"
+    # HTML report folder is 'playwright-report' by default unless overridden in config
+    npx playwright test --reporter=list,junit
   workingDirectory: '$(WORKDIR)'
   displayName: 'Run Playwright Tests'
 
-# Step 5: Publish JUnit test results (Ensure path matches where your test results are generated)
+# 5) Publish JUnit results
 - task: PublishTestResults@2
   inputs:
-    testResultsFiles: '**/test-results/*.xml'  # Path to JUnit XML test results
     testResultsFormat: 'JUnit'
+    testResultsFiles: '$(WORKDIR)/test-results/junit.xml'
     testRunTitle: 'Playwright Test Results'
     mergeTestResults: true
-  condition: always()  # Ensure this task runs even if tests fail
-  displayName: 'Publish Playwright Test Results'
+  condition: always()
+  displayName: 'Publish JUnit results'
 
-# Step 6: Publish HTML report (optional)
+# 6) Publish HTML report (if generated)
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: '$(WORKDIR)/playwright-report'
