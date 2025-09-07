@@ -99,11 +99,11 @@ steps:
   condition: always()
   displayName: 'Publish Allure HTML Report'
 
-# 6a) Also publish as Pipeline Artifact (shows in run header)
+# 6a) Also publish as Pipeline Artifact (shows in run header) — RENAMED to avoid clash
 - task: PublishPipelineArtifact@1
   inputs:
     targetPath: '$(WORKDIR)/allure-report'
-    artifact: 'allure-report'
+    artifact: 'allure-report-pipeline'   # <- new unique name
     publishLocation: 'pipeline'
   condition: always()
   displayName: 'Publish Allure HTML (Pipeline Artifact)'
@@ -143,7 +143,7 @@ steps:
     echo "The Allure HTML report has been published as build and pipeline artifacts." >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
     echo "- **Open artifacts:** [$ARTIFACT_URL]($ARTIFACT_URL)" >> "$SUMMARY_FILE"
-    echo "- **Artifact names:** \`allure-report\`, \`allure-report-zip\`, \`allure-results\`" >> "$SUMMARY_FILE"
+    echo "- **Artifact names:** \`allure-report\`, \`allure-report-pipeline\`, \`allure-report-zip\`, \`allure-results\`" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
     echo "Download the artifact and open \`index.html\` via a local server (not file://) to view the full Allure report." >> "$SUMMARY_FILE"
     echo "##vso[task.addattachment type=Distributedtask.Core.Summary;name=Allure Report;]$SUMMARY_FILE"
