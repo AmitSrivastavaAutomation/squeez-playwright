@@ -41,11 +41,11 @@ steps:
       npm|$(Agent.OS)
     path: '$(NPM_CACHE_DIR)'
 
-# Install deps (and ensure Allure CL is available)
+# Install deps (and ensure Allure CLI is available)
 - script: |
     npm config set cache "$(NPM_CACHE_DIR)" --global
     npm ci
-    # Fallback install in CI if devDeps missing locally (safe if already installed)
+    # Ensure the correct Allure CLI is available
     npx --yes allure-commandline@latest --version
   workingDirectory: '$(WORKDIR)'
   displayName: 'Install npm dependencies (+ verify Allure)'
@@ -59,7 +59,8 @@ steps:
 
 - script: |
     export PLAYWRIGHT_BROWSERS_PATH="$(PW_BROWSERS_CACHE_DIR)"
-    if [ ! -d "$PLAYWRIGHT_BROWSERS_CACHE_DIR" ] || [ -z "$(ls -A "$PLAYWRIGHT_BROWSERS_CACHE_DIR")" ]; then
+    echo "PLAYWRIGHT_BROWSERS_PATH=$PLAYWRIGHT_BROWSERS_PATH"
+    if [ ! -d "$(PW_BROWSERS_CACHE_DIR)" ] || [ -z "$(ls -A "$(PW_BROWSERS_CACHE_DIR)" 2>/dev/null)" ]; then
       echo "No cached browsers found. Installing..."
       npx playwright install --with-deps
     else
@@ -68,35 +69,29 @@ steps:
   workingDirectory: '$(WORKDIR)'
   displayName: 'Ensure Playwright browsers are available'
 
-# 4) Run tests => JUnit + Allure results
+# 4) Run tests => Allure results only
 - script: |
     export PLAYWRIGHT_BROWSERS_PATH="$(PW_BROWSERS_CACHE_DIR)"
-    mkdir -p test-results
-    export PW_TEST_JUNIT_OUTPUT="test-results/junit.xml"
-    echo "Running Playwright tests with JUnit + Allure reporters..."
-    npx playwright test --reporter=line,junit,allure-playwright
+    echo "Running Playwright tests with Allure reporter..."
+    npx playwright test --reporter=line,allure-playwright
   workingDirectory: '$(WORKDIR)'
-  displayName: 'Run Playwright Tests (JUnit + Allure)'
+  displayName: 'Run Playwright Tests (Allure)'
 
-# 5) Publish JUnit to Azure Tests tab
-- task: PublishTestResults@2
-  inputs:
-    testResultsFormat: 'JUnit'
-    testResultsFiles: '$(WORKDIR)/test-results/junit.xml'
-    testRunTitle: 'Playwright Test Results'
-    mergeTestResults: true
-  condition: always()
-  displayName: 'Publish JUnit results'
-
-# 6) Generate Allure HTML report
+# 5) Generate Allure HTML report (guarded if no results)
 - script: |
     echo "Generating Allure report from ./allure-results..."
-    npx allure generate ./allure-results --clean -o allure-report
+    if [ -d "./allure-results" ] && [ "$(ls -A ./allure-results 2>/dev/null)" ]; then
+      npx allure-commandline --version
+      npx allure-commandline generate ./allure-results --clean -o allure-report
+    else
+      echo "No allure-results found; skipping report generation."
+      mkdir -p allure-report && echo "<h3>No Allure results found</h3>" > allure-report/index.html
+    fi
   workingDirectory: '$(WORKDIR)'
   condition: always()
   displayName: 'Generate Allure HTML report'
 
-# 7) Publish Allure HTML as Artifact (downloadable / browsable)
+# 6) Publish Allure HTML as Artifact
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: '$(WORKDIR)/allure-report'
@@ -104,7 +99,7 @@ steps:
   condition: always()
   displayName: 'Publish Allure HTML Report'
 
-# 8) Add a clickable link in the Build Summary
+# 7) Add a clickable link in the Build Summary
 - script: |
     SUMMARY_FILE="$(Build.SourcesDirectory)/AllureReportSummary.md"
     ARTIFACT_URL="$(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)&view=artifacts&type=publishedArtifacts"
