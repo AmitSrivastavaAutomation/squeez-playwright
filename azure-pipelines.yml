@@ -45,7 +45,7 @@ steps:
 - script: |
     npm config set cache "$(NPM_CACHE_DIR)" --global
     npm ci
-    # Ensure the correct Allure CLI is available
+    # Ensure the correct Allure CLI is available (v2)
     npx --yes allure-commandline@latest --version
   workingDirectory: '$(WORKDIR)'
   displayName: 'Install npm dependencies (+ verify Allure)'
@@ -91,7 +91,7 @@ steps:
   condition: always()
   displayName: 'Generate Allure HTML report'
 
-# 6) Publish Allure HTML as Artifact
+# 6) Publish HTML report (Build Artifact)
 - task: PublishBuildArtifacts@1
   inputs:
     PathtoPublish: '$(WORKDIR)/allure-report'
@@ -99,18 +99,53 @@ steps:
   condition: always()
   displayName: 'Publish Allure HTML Report'
 
+# 6a) Also publish as Pipeline Artifact (shows in run header)
+- task: PublishPipelineArtifact@1
+  inputs:
+    targetPath: '$(WORKDIR)/allure-report'
+    artifact: 'allure-report'
+    publishLocation: 'pipeline'
+  condition: always()
+  displayName: 'Publish Allure HTML (Pipeline Artifact)'
+
+# 6b) Zip the report for easy download
+- task: ArchiveFiles@2
+  inputs:
+    rootFolderOrFile: '$(WORKDIR)/allure-report'
+    includeRootFolder: false
+    archiveType: 'zip'
+    archiveFile: '$(Build.ArtifactStagingDirectory)/allure-report.zip'
+    replaceExistingArchive: true
+  condition: always()
+  displayName: 'Zip Allure report'
+
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)/allure-report.zip'
+    ArtifactName: 'allure-report-zip'
+  condition: always()
+  displayName: 'Publish zipped Allure report'
+
+# 6c) (Optional) Publish raw Allure results too
+- task: PublishBuildArtifacts@1
+  inputs:
+    PathtoPublish: '$(WORKDIR)/allure-results'
+    ArtifactName: 'allure-results'
+  condition: always()
+  displayName: 'Publish raw Allure results'
+
 # 7) Add a clickable link in the Build Summary
 - script: |
     SUMMARY_FILE="$(Build.SourcesDirectory)/AllureReportSummary.md"
     ARTIFACT_URL="$(System.TeamFoundationCollectionUri)$(System.TeamProject)/_build/results?buildId=$(Build.BuildId)&view=artifacts&type=publishedArtifacts"
     echo "### 📊 Allure Report" > "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
-    echo "The Allure HTML report has been published as a build artifact." >> "$SUMMARY_FILE"
+    echo "The Allure HTML report has been published as build and pipeline artifacts." >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
     echo "- **Open artifacts:** [$ARTIFACT_URL]($ARTIFACT_URL)" >> "$SUMMARY_FILE"
-    echo "- **Artifact name:** \`allure-report\`" >> "$SUMMARY_FILE"
+    echo "- **Artifact names:** \`allure-report\`, \`allure-report-zip\`, \`allure-results\`" >> "$SUMMARY_FILE"
     echo "" >> "$SUMMARY_FILE"
-    echo "Download the artifact and open \`index.html\` to view the full Allure report." >> "$SUMMARY_FILE"
+    echo "Download the artifact and open \`index.html\` via a local server (not file://) to view the full Allure report." >> "$SUMMARY_FILE"
     echo "##vso[task.addattachment type=Distributedtask.Core.Summary;name=Allure Report;]$SUMMARY_FILE"
   displayName: 'Add Allure link to Build Summary'
   condition: always()
